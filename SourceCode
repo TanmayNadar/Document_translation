@@ -1,0 +1,38 @@
+import boto3
+
+s3_client = boto3.client('s3')
+translate_client = boto3.client('translate')
+
+def translate_text(text, target_language):
+    response = translate_client.translate_text(
+        Text=text,
+        SourceLanguageCode='auto',  
+        TargetLanguageCode=target_language
+    )
+    return response['TranslatedText']
+
+def lambda_handler(event, context):
+    # Retrieve the bucket name and file key from the S3 event
+    bucket_name = event['Records'][0]['s3']['bucket']['name']
+    file_key = event['Records'][0]['s3']['object']['key']
+
+    try:
+        # Retrieve the object from the S3 bucket
+        response = s3_client.get_object(Bucket=bucket_name, Key=file_key)
+        text = response['Body'].read().decode('utf-8')
+
+        # Translate the text content
+        translated_text = translate_text(text, 'hi')  
+
+        
+        output_bucket = 'output-bucket-data'  
+        output_key = f"translated/{file_key}"  # Example: 'translated/document.txt'
+        s3_client.put_object(Body=translated_text.encode('utf-8'), Bucket=output_bucket, Key=output_key)
+
+        return {
+            'statusCode': 200,
+            'body': 'Translation completed successfully'
+        }
+    except Exception as e:
+        print(f"Error: {e}")
+        raise e
